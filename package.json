@@ -1,0 +1,31 @@
+{
+  "name": "tack-hocuspocus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-hosted Hocuspocus real-time Yjs sync server for Tack's Pages content type.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ullav-dev/tack-hocuspocus.git"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@hocuspocus/server": "^4.4.0",
+    "dotenv": "^17.2.3",
+    "pg": "^8.22.0",
+    "yjs": "^13.6.31"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/pg": "^8",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^4"
+  }
+}
