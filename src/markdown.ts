@@ -6,13 +6,14 @@ import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import DamAssetNode from "./DamAssetNode.js";
+import PageReferenceNode from "./PageReferenceNode.js";
 
 // Must match the extensions actually registered on the frontend editor
 // (tack/src/components/PageEditor.tsx) closely enough to reconstruct the
 // same node/mark structure -- CollaborationCaret and the Markdown extension
 // itself don't affect document *shape* so they're not needed here, but
-// StarterKit/Table/DamAssetNode do.
-const extensions = [StarterKit, Table, TableRow, TableHeader, TableCell, DamAssetNode];
+// StarterKit/Table/DamAssetNode/PageReferenceNode do.
+const extensions = [StarterKit, Table, TableRow, TableHeader, TableCell, DamAssetNode, PageReferenceNode];
 
 // Yjs -> ProseMirror JSON -> HTML -> Markdown, rather than driving a full
 // Tiptap Editor instance server-side (which needs a live DOM/view, not just
@@ -53,6 +54,15 @@ turndownService.addRule("damAsset", {
     const alt = el.getAttribute("alt") ?? "";
     const src = el.getAttribute("src") ?? "";
     return `![${alt}](${src})`;
+  },
+});
+turndownService.addRule("pageReference", {
+  filter: (node) => node.nodeName === "A" && node.hasAttribute("data-page-reference"),
+  replacement: (_content, node) => {
+    const el = node as unknown as { getAttribute(name: string): string | null; textContent: string | null };
+    const href = el.getAttribute("href") ?? "";
+    const title = el.textContent || "Untitled page";
+    return `[${title}](${href})`;
   },
 });
 
