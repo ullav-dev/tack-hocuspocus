@@ -4,9 +4,10 @@ import { TiptapTransformer } from "@hocuspocus/transformer";
 import StarterKit from "@tiptap/starter-kit";
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
 import DamAssetNode from "./DamAssetNode.js";
+import PageReferenceNode from "./PageReferenceNode.js";
 import { deriveMarkdown } from "./markdown.js";
 
-const extensions = [StarterKit, Table, TableRow, TableHeader, TableCell, DamAssetNode];
+const extensions = [StarterKit, Table, TableRow, TableHeader, TableCell, DamAssetNode, PageReferenceNode];
 
 function ydocFromJson(json: Record<string, unknown>): Y.Doc {
   return TiptapTransformer.extensions(extensions).toYdoc(json, "default", extensions);
@@ -88,5 +89,23 @@ describe("deriveMarkdown", () => {
 
     const markdown = deriveMarkdown(ydoc);
     expect(markdown).toBe("![photo](http://localhost:8087/api/dam/assets/x/thumbnail)");
+  });
+
+  it("renders a pageReference node as a markdown link", () => {
+    const ydoc = ydocFromJson({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "See " },
+            { type: "pageReference", attrs: { pageId: "p1", spaceId: "s1", title: "Runbook" } },
+          ],
+        },
+      ],
+    });
+
+    const markdown = deriveMarkdown(ydoc);
+    expect(markdown).toBe("See [Runbook](/spaces/s1/pages/p1)");
   });
 });
