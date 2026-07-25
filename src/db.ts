@@ -52,10 +52,16 @@ export async function loadDocState(pool: pg.Pool, pageId: string): Promise<Uint8
  * `content_markdown` value alone via `COALESCE` -- persisting the Yjs
  * state is the actually-critical write here, and a transient derivation
  * failure must never clobber the last-known-good markdown with an empty
- * string. One `UPDATE` (not two separate ones), so both columns land in
- * the same statement/`updated_at`. Always an `UPDATE`, never an insert —
- * every page's `page_docs` row is created transactionally by tack-server
- * at page-creation time, before this service is ever involved.
+ * string.
+ *
+ * Also enqueues an `outbox_events` row in the same transaction as the
+ * `page_docs` update, mirroring tack-server's own REST-write outbox pattern
+ * (`db::pages::enqueue_outbox_event`) -- without this, a page edited only
+ * through the collaborative editor never gets (re-)indexed into OpenSearch,
+ * since `tack-indexer` only ever sees writes that enqueued their own outbox
+ * row. `organization_id` isn't known by the caller (a Hocuspocus session
+ * only has the page id), so it's read back from the same `page_docs` row
+ * being updated, in the same transaction.
  */
 export async function storeDocument(
   pool: pg.Pool,
@@ -63,8 +69,25 @@ export async function storeDocument(
   state: Uint8Array,
   markdown: string | null,
 ): Promise<void> {
-  await pool.query(
-    "UPDATE page_docs SET yjs_doc_state = $1, content_markdown = COALESCE($2, content_markdown), updated_at = NOW() WHERE page_id = $3",
-    [Buffer.from(state), markdown, pageId],
-  );
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query<{ organization_id: string }>(
+      "UPDATE page_docs SET yjs_doc_state = $1, content_markdown = COALESCE($2, content_markdown), updated_at = NOW() WHERE page_id = $3 RETURNING organization_id",
+      [Buffer.from(state), markdown, pageId],
+    );
+    const organizationId = result.rows[0]?.organization_id;
+    if (organizationId) {
+      await client.query(
+        "INSERT INTO outbox_events (organization_id, content_type, content_id, event_type) VALUES ($1, 'page', $2, 'updated')",
+        [organizationId, pageId],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
 }
