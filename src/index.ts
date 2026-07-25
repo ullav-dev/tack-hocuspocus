@@ -3,8 +3,9 @@ import { Server } from "@hocuspocus/server";
 import * as Y from "yjs";
 
 import { loadConfig } from "./config.js";
-import { createPool, loadDocState, storeDocState } from "./db.js";
+import { createPool, loadDocState, storeDocument } from "./db.js";
 import { PermissionDeniedError, resolvePermission } from "./auth.js";
+import { deriveMarkdown } from "./markdown.js";
 
 const config = loadConfig();
 const pool = createPool(config.databaseUrl);
@@ -59,12 +60,25 @@ const server = new Server({
     return loadDocState(pool, documentName);
   },
 
-  // Persists the current document state on every (debounced) change.
-  // Throwing here is safe -- Hocuspocus keeps the document in memory and
-  // retries, per its own documented behavior.
+  // Persists the current document state on every (debounced) change, plus
+  // the Markdown derived from it (see markdown.ts) -- this is what keeps
+  // page_docs.content_markdown from going stale after a page is edited
+  // collaboratively (a previously documented, now-fixed gap; see
+  // CLAUDE.md). Throwing here is safe -- Hocuspocus keeps the document in
+  // memory and retries, per its own documented behavior. Markdown
+  // derivation failing shouldn't block persisting the Yjs state itself
+  // (that's the actually-critical write) or clobber the last-known-good
+  // markdown -- `null` tells storeDocument to leave content_markdown alone.
   async onStoreDocument({ documentName, document }) {
     const state = Y.encodeStateAsUpdate(document);
-    await storeDocState(pool, documentName, state);
+    let markdown: string | null = null;
+    try {
+      markdown = deriveMarkdown(document);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to derive markdown for page ${documentName}:`, error);
+    }
+    await storeDocument(pool, documentName, state, markdown);
   },
 });
 
