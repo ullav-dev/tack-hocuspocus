@@ -44,13 +44,27 @@ export async function loadDocState(pool: pg.Pool, pageId: string): Promise<Uint8
 }
 
 /**
- * Persists a page's current Yjs document state. Always an `UPDATE`, never an
- * insert — every page's `page_docs` row is created transactionally by
- * tack-server at page-creation time, before this service is ever involved.
+ * Persists a page's current Yjs document state, and (if markdown
+ * derivation in `markdown.ts` succeeded) the Markdown derived from it into
+ * `page_docs.content_markdown` -- the "derived projection" `content_markdown`
+ * becomes once Hocuspocus exists, per migration 004_pages.sql's own comment.
+ * `markdown: null` (derivation failed/threw) leaves the existing
+ * `content_markdown` value alone via `COALESCE` -- persisting the Yjs
+ * state is the actually-critical write here, and a transient derivation
+ * failure must never clobber the last-known-good markdown with an empty
+ * string. One `UPDATE` (not two separate ones), so both columns land in
+ * the same statement/`updated_at`. Always an `UPDATE`, never an insert —
+ * every page's `page_docs` row is created transactionally by tack-server
+ * at page-creation time, before this service is ever involved.
  */
-export async function storeDocState(pool: pg.Pool, pageId: string, state: Uint8Array): Promise<void> {
-  await pool.query("UPDATE page_docs SET yjs_doc_state = $1, updated_at = NOW() WHERE page_id = $2", [
-    Buffer.from(state),
-    pageId,
-  ]);
+export async function storeDocument(
+  pool: pg.Pool,
+  pageId: string,
+  state: Uint8Array,
+  markdown: string | null,
+): Promise<void> {
+  await pool.query(
+    "UPDATE page_docs SET yjs_doc_state = $1, content_markdown = COALESCE($2, content_markdown), updated_at = NOW() WHERE page_id = $3",
+    [Buffer.from(state), markdown, pageId],
+  );
 }

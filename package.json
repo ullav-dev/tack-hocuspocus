@@ -17,13 +17,22 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@hocuspocus/server": "^4.4.0",
+    "@hocuspocus/transformer": "^4.4.0",
+    "@tiptap/core": "^3.29.0",
+    "@tiptap/extension-table": "^3.29.0",
+    "@tiptap/html": "^3.29.0",
+    "@tiptap/starter-kit": "^3.29.0",
     "dotenv": "^17.2.3",
+    "happy-dom": "^20.11.1",
     "pg": "^8.22.0",
+    "turndown": "^7.2.4",
+    "turndown-plugin-gfm": "^1.0.2",
     "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/pg": "^8",
+    "@types/turndown": "^5.0.6",
     "tsx": "^4",
     "typescript": "^5",
     "vitest": "^4"
