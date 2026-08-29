@@ -14,7 +14,7 @@
     "type": "git",
     "url": "git+https://github.com/ullav-dev/tack-hocuspocus.git"
   },
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@hocuspocus/server": "^4.4.0",
     "@hocuspocus/transformer": "^4.4.0",
